@@ -6,9 +6,11 @@ build:
 
 build-universal: clean
 	swift build -c release --arch x86_64
+	cp .build/release/html2img .build/html2img-x86_64
 	swift build -c release --arch arm64
+	cp .build/release/html2img .build/html2img-arm64
 	mkdir -p .build/universal
-	lipo -create -output .build/universal/html2img .build/apple/Products/Release/html2img .build/apple/Products/Release/html2img
+	lipo -create -output .build/universal/html2img .build/html2img-x86_64 .build/html2img-arm64
 
 install: build
 	install .build/release/html2img $(PREFIX)/html2img
