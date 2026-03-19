@@ -20,10 +20,9 @@ jobs:
 
       - name: Package skill with CLI
         run: |
-          mkdir -p html2img-skill/scripts html2img-skill/evals
+          mkdir -p html2img-skill/scripts
           cp .build/universal/html2img html2img-skill/scripts/html2img
           cp skill/html2img-render/SKILL.md html2img-skill/
-          cp skill/html2img-render/evals/evals.json html2img-skill/evals/
           cd html2img-skill
           zip -r ../html2img-skill.zip .
 
