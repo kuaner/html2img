@@ -26,8 +26,15 @@ jobs:
           cd html2img-skill
           zip -r ../html2img-skill.zip .
 
+      - name: Package standalone binary
+        run: |
+          cd .build/universal
+          tar -czf ../../html2img-universal.tar.gz html2img
+
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: html2img-skill.zip
+          files: |
+            html2img-skill.zip
+            html2img-universal.tar.gz
