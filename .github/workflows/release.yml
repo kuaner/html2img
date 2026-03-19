@@ -1,4 +1,4 @@
-name: Build Universal Binary
+name: Build and Release
 
 on:
   push:
@@ -18,19 +18,17 @@ jobs:
       - name: Build universal binary
         run: make build-universal
 
-      - name: Create archive
+      - name: Package skill with CLI
         run: |
-          cd .build/universal
-          tar -czf ../../html2img-universal.tar.gz html2img
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: html2img-universal
-          path: html2img-universal.tar.gz
+          mkdir -p html2img-skill/evals
+          cp .build/universal/html2img html2img-skill/
+          cp skill/html2img-render/SKILL.md html2img-skill/
+          cp skill/html2img-render/evals/evals.json html2img-skill/evals/
+          cd html2img-skill
+          zip -r ../html2img-skill.zip .
 
       - name: Upload to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: html2img-universal.tar.gz
+          files: html2img-skill.zip

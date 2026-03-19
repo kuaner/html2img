@@ -19,46 +19,53 @@ Render a local HTML file to a PNG image using the `html2img` command-line tool.
 
 ## Usage
 
-### Basic rendering
-
 ```bash
-html2img input.html output.png
-```
-
-### Custom viewport width
-
-```bash
-html2img input.html output.png 1200
+./html2img <input.html> <output.png> [width]
 ```
 
 Default width is 800px.
+
+## Locating the html2img binary
+
+The `html2img` binary is located in the same directory as this SKILL.md file. Use it directly:
+
+```bash
+./html2img <input.html> <output.png> [width]
+```
+
+If the binary is missing (e.g. during development), build it from the project root:
+
+```bash
+cd <project-root> && swift build -c release
+```
+
+The project root is the parent of the `skill/html2img-render/` directory.
 
 ## Key constraints
 
 - **Local files only** — the input must be a local `.html` file path. Remote URLs are not supported.
 - **External resources** — CSS, JS, images, and fonts must be in the same directory (or a subdirectory) as the HTML file. Relative paths work, but remote CDN URLs (e.g. `<script src="https://...">`) will not load.
 - **Output is PNG** — the tool always outputs PNG format.
+- **macOS only** — requires macOS 13+ and WebKit.
 
 ## Workflow
 
 When asked to render HTML to an image, follow these steps:
 
-1. **Locate the HTML file** — Find the `.html` file the user wants to render. If they refer to a file by name, search for it in the working directory.
+1. **Locate the HTML file** — Find the `.html` file the user wants to render.
 
-2. **Verify prerequisites** — Check that:
-   - The HTML file exists at the specified path
-   - The `html2img` binary is available (try `which html2img` or `html2img --help`)
+2. **Ensure html2img is available** — Check for `html2img` in the same directory as this SKILL.md. If not found, build it from the project root with `swift build -c release`.
 
 3. **Choose output path** — If the user doesn't specify an output path, place the PNG next to the HTML file with the same base name, e.g. `report.html` → `report.png`.
 
-4. **Determine width** — Use the default 800px unless the user specifies a different width. If the HTML content is designed for a particular viewport, use that width.
+4. **Determine width** — Use the default 800px unless the user specifies a different width.
 
 5. **Run the render**:
    ```bash
-   html2img <input.html> <output.png> [width]
+   <skill-directory>/html2img <input.html> <output.png> [width]
    ```
 
-6. **Report the result** — Tell the user where the PNG was saved. If the command fails, share the error and suggest fixes (common issues: missing HTML file, external CDN resources, missing local CSS/JS dependencies).
+6. **Report the result** — Tell the user where the PNG was saved. If the command fails, share the error and suggest fixes.
 
 ## Common troubleshooting
 
