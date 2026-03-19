@@ -1,0 +1,23 @@
+{
+  "skill_name": "html2img-render",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a report card at ./output/report.html, can you turn it into a PNG image so I can share it on Slack?",
+      "expected_output": "Claude should locate the HTML file, call html2img to render it as PNG, and tell the user where the output was saved.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Can you create a simple dashboard HTML with some charts, then render it to an image? Make it 1200px wide.",
+      "expected_output": "Claude should create an HTML file with a dashboard layout (CSS-only charts are fine since CDN won't work), then use html2img to render it to PNG at 1200px width, and report the output location.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I just generated this poster.html file in the current directory. It's a social media card. Can you export it as an image for me?",
+      "expected_output": "Claude should find poster.html in the working directory, render it with html2img to poster.png, and confirm the output.",
+      "files": []
+    }
+  ]
+}

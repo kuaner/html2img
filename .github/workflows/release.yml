@@ -1,0 +1,36 @@
+name: Build Universal Binary
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: make build-universal
+
+      - name: Create archive
+        run: |
+          cd .build/universal
+          tar -czf ../../html2img-universal.tar.gz html2img
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: html2img-universal
+          path: html2img-universal.tar.gz
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: html2img-universal.tar.gz
