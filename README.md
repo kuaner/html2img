@@ -65,11 +65,11 @@ Add the dependency in `Package.swift`:
 ## Notes
 
 - **Local files only** — `html2img` renders local HTML files. Remote URLs are not supported.
-- **External resources** — CSS/JS files must be placed in the same directory as the HTML file (or a subdirectory). WKWebView uses `file://` protocol with the HTML's directory as `baseURL`, so relative resource paths work naturally. Remote CDN resources (e.g. `<script src="https://...">`) are not loaded.
+- **External resources** — CSS/JS/images can be local files or loaded from CDN. Both relative paths and remote URLs are supported.
 
 ## How it works
 
-1. Loads the HTML file into an invisible `WKWebView` window
+1. Loads the HTML file into an offscreen WKWebView
 2. Waits for the page to fully load (including JS, Canvas, etc.)
 3. Measures the full content height
 4. Exports to PDF via `WKWebView.createPDF`

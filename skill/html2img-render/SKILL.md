@@ -28,7 +28,7 @@ Default width is 800px.
 ## Key constraints
 
 - **Local files only** — the input must be a local `.html` file path. Remote URLs are not supported.
-- **External resources** — CSS, JS, images, and fonts must be in the same directory (or a subdirectory) as the HTML file. Relative paths work, but remote CDN URLs (e.g. `<script src="https://...">`) will not load.
+- **External resources** — CSS, JS, images, and fonts can be local files or loaded from CDN. Relative paths and remote URLs are supported.
 - **Output is PNG** — the tool always outputs PNG format.
 - **macOS only** — requires macOS 13+ and WebKit.
 
@@ -55,5 +55,5 @@ When asked to render HTML to an image, follow these steps:
 |---------|-------------|
 | Image is blank or empty | JavaScript hasn't finished executing; the page may need more load time |
 | Styles are missing | CSS/JS files are not in the same directory as the HTML file |
-| Fonts look wrong | Web fonts loaded via CDN won't work; use local font files instead |
-| Charts don't appear | Chart.js loaded from CDN won't work; include the library locally |
+| Fonts look wrong | Check that the font URL is correct and accessible; try Google Fonts CDN or local @font-face |
+| Charts don't appear | Check the Chart.js script tag is correct and the network is accessible |

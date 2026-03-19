@@ -10,7 +10,7 @@
     {
       "id": 2,
       "prompt": "Can you create a simple dashboard HTML with some charts, then render it to an image? Make it 1200px wide.",
-      "expected_output": "Claude should create an HTML file with a dashboard layout (CSS-only charts are fine since CDN won't work), then use html2img to render it to PNG at 1200px width, and report the output location.",
+      "expected_output": "Claude should create an HTML file with a dashboard layout including Chart.js (loaded via CDN), then use html2img to render it to PNG at 1200px width, and report the output location.",
       "files": []
     },
     {
