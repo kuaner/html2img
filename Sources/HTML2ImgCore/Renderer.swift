@@ -37,12 +37,8 @@ public final class Renderer: NSObject, WKNavigationDelegate {
         window.alphaValue = 0.0
         self.window = window
 
-        do {
-            let html = try String(contentsOf: fileURL, encoding: .utf8)
-            webView.loadHTMLString(html, baseURL: fileURL.deletingLastPathComponent())
-        } catch {
-            completion(.failure(error))
-        }
+        let directory = fileURL.deletingLastPathComponent()
+        webView.loadFileURL(fileURL, allowingReadAccessTo: directory)
     }
 
     // MARK: - WKNavigationDelegate
