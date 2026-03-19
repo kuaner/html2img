@@ -11,7 +11,7 @@ description: >
 
 # html2img-render
 
-Render a local HTML file to a PNG image using the `html2img` command-line tool.
+Render a local HTML file to a PNG image using the `html2img` CLI tool.
 
 ## How it works
 
@@ -20,26 +20,10 @@ Render a local HTML file to a PNG image using the `html2img` command-line tool.
 ## Usage
 
 ```bash
-./html2img <input.html> <output.png> [width]
+scripts/html2img <input.html> <output.png> [width]
 ```
 
 Default width is 800px.
-
-## Locating the html2img binary
-
-The `html2img` binary is located in the same directory as this SKILL.md file. Use it directly:
-
-```bash
-./html2img <input.html> <output.png> [width]
-```
-
-If the binary is missing (e.g. during development), build it from the project root:
-
-```bash
-cd <project-root> && swift build -c release
-```
-
-The project root is the parent of the `skill/html2img-render/` directory.
 
 ## Key constraints
 
@@ -54,18 +38,16 @@ When asked to render HTML to an image, follow these steps:
 
 1. **Locate the HTML file** — Find the `.html` file the user wants to render.
 
-2. **Ensure html2img is available** — Check for `html2img` in the same directory as this SKILL.md. If not found, build it from the project root with `swift build -c release`.
+2. **Choose output path** — If the user doesn't specify an output path, place the PNG next to the HTML file with the same base name, e.g. `report.html` → `report.png`.
 
-3. **Choose output path** — If the user doesn't specify an output path, place the PNG next to the HTML file with the same base name, e.g. `report.html` → `report.png`.
+3. **Determine width** — Use the default 800px unless the user specifies a different width.
 
-4. **Determine width** — Use the default 800px unless the user specifies a different width.
-
-5. **Run the render**:
+4. **Run the render**:
    ```bash
-   <skill-directory>/html2img <input.html> <output.png> [width]
+   scripts/html2img <input.html> <output.png> [width]
    ```
 
-6. **Report the result** — Tell the user where the PNG was saved. If the command fails, share the error and suggest fixes.
+5. **Report the result** — Tell the user where the PNG was saved. If the command fails, share the error and suggest fixes.
 
 ## Common troubleshooting
 
