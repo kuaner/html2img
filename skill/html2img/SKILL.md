@@ -1,5 +1,5 @@
 ---
-name: html2img-render
+name: html2img
 description: >
   Render local HTML files to PNG images using the html2img CLI tool. Use this skill whenever the user
   wants to convert an HTML file to an image, take a screenshot of an HTML file, export HTML as PNG,
@@ -9,7 +9,7 @@ description: >
   working directory and the user wants to preview or share it visually.
 ---
 
-# html2img-render
+# html2img
 
 Render a local HTML file to a PNG image using the `html2img` CLI tool.
 
