@@ -14,6 +14,7 @@ A lightweight macOS command-line tool that renders local HTML files to PNG image
 - Full CSS / JavaScript / Canvas / Chart.js support via WKWebView
 - Auto-detects content height
 - Configurable viewport width
+- Optional fixed-height segmentation or `--sections` (one PNG per `[data-html2img-section]` block)
 - Usable as a CLI tool or as a Swift library
 
 ## Requirements
@@ -38,7 +39,24 @@ This builds and installs the `html2img` binary to `/usr/local/bin`.
 ```bash
 html2img input.html output.png
 html2img input.html output.png 1200   # custom width
+html2img input.html output.png --segment-height 8000  # output-1.png, output-2.png...
+html2img input.html output.png --sections  # one PNG per [data-html2img-section] block
 ```
+
+### Section-based slicing
+
+When fixed-height slices cut through cards/charts, wrap each logical block in a container with `data-html2img-section` (any tag, e.g. `<section>` or `<div>`):
+
+```html
+<section data-html2img-section>...</section>
+<section data-html2img-section>...</section>
+```
+
+```bash
+html2img report.html out.png --sections
+```
+
+- Outputs `out-1.png`, `out-2.png`, … in document order, one image per section’s bounding box.
 
 ### As a Swift library
 
@@ -52,6 +70,13 @@ renderer.render(fileURL: url, width: 800) { result in
         // use NSImage
     case .failure(let error):
         print(error)
+    }
+}
+
+renderer.renderSegmentedBySections(fileURL: url, width: 800) { result in
+    switch result {
+    case .success(let images): break // one NSImage per [data-html2img-section]
+    case .failure(let error): print(error)
     }
 }
 ```

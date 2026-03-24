@@ -11,49 +11,92 @@ description: >
 
 # html2img
 
-Render a local HTML file to a PNG image using the `html2img` CLI tool.
+Render a local HTML file to PNG using the `html2img` CLI tool.
 
 ## How it works
 
-`html2img` uses macOS WebKit to render HTML in an offscreen WKWebView, then exports the result as a PNG. It supports full CSS, JavaScript, Canvas, and Chart.js content.
+`html2img` uses macOS WebKit (offscreen `WKWebView`), exports via PDF, then encodes PNG. Supports CSS, JavaScript, Canvas, Chart.js.
 
 ## Usage
 
 ```bash
 scripts/html2img <input.html> <output.png> [width]
+scripts/html2img <input.html> <output.png> [width] --segment-height <height>
+scripts/html2img <input.html> <output.png> [width] --sections
 ```
 
 Default width is 800px.
 
 ## Key constraints
 
-- **Local files only** — the input must be a local `.html` file path. Remote URLs are not supported.
-- **External resources** — CSS, JS, images, and fonts can be local files or loaded from CDN. Relative paths and remote URLs are supported.
-- **Output is PNG** — the tool always outputs PNG format.
-- **macOS only** — requires macOS 13+ and WebKit.
+- **Local files only** — input must be a local `.html` path; remote URLs are not supported.
+- **External resources** — CSS/JS/images/fonts may be local or CDN; relative paths and remote URLs are allowed.
+- **Output is PNG**.
+- **macOS only** — macOS 13+ and WebKit.
+- **Very long pages** — avoid a single full-page capture; use `--segment-height` or `--sections`.
 
 ## Workflow
 
-When asked to render HTML to an image, follow these steps:
+When asked to render HTML to images:
 
-1. **Locate the HTML file** — Find the `.html` file the user wants to render.
-
-2. **Choose output path** — If the user doesn't specify an output path, place the PNG next to the HTML file with the same base name, e.g. `report.html` → `report.png`.
-
-3. **Determine width** — Use the default 800px unless the user specifies a different width.
-
-4. **Run the render**:
+1. **Locate the HTML file**.
+2. **Choose output path** — if unspecified, default `report.html` → `report.png` next to the file.
+3. **Choose width** — default 800 unless the user asks otherwise.
+4. **Choose mode**:
+   - **Single image**: normal short pages.
+   - **Fixed-height strips**: `--segment-height` for long pages without semantic boundaries.
+   - **Section images**: `--sections` when HTML uses `[data-html2img-section]` wrappers (preferred for reports).
+5. **Run**:
    ```bash
    scripts/html2img <input.html> <output.png> [width]
    ```
+   Long page (fixed height):
+   ```bash
+   scripts/html2img <input.html> <output.png> [width] --segment-height 7000
+   ```
+   One file per section:
+   ```bash
+   scripts/html2img <input.html> <output.png> [width] --sections
+   ```
+6. **Report paths** — single file prints one path; segmented modes print `output-1.png`, `output-2.png`, …
 
-5. **Report the result** — Tell the user where the PNG was saved. If the command fails, share the error and suggest fixes.
+## Section HTML (for LLMs generating reports)
+
+**Convention:** wrap each block that should become its own PNG in an element with `data-html2img-section`. Use document order; each match becomes one output image sized to that element’s layout box.
+
+```html
+<body>
+  <section data-html2img-section class="report-block">
+    <h2>Overview</h2>
+    ...
+  </section>
+
+  <section data-html2img-section class="report-block">
+    <h2>Charts</h2>
+    ...
+  </section>
+</body>
+```
+
+**Rules for generators:**
+
+1. One logical “slide” or “card group” per `[data-html2img-section]` wrapper — do not split a single chart/table across two sections.
+2. Prefer block-level wrappers (`section`, `div`) that contain the full visual unit (heading + body + footnotes in that unit).
+3. Do not nest `[data-html2img-section]` inside another `[data-html2img-section]` (outer box only).
+4. Avoid putting the attribute on `position: sticky` roots only; wrap inner content so the export box is stable.
+5. After generating HTML, render with:  
+   `scripts/html2img <file.html> <out.png> <width> --sections`
+
+**Copyable LLM instruction**
+
+> Structure the report as a sequence of `<section data-html2img-section>` (or `<div data-html2img-section>`) blocks, each containing one major unit of content. Then export with `html2img … --sections` to get `out-1.png`, `out-2.png`, …
 
 ## Common troubleshooting
 
 | Symptom | Likely cause |
 |---------|-------------|
-| Image is blank or empty | JavaScript hasn't finished executing; the page may need more load time |
-| Styles are missing | CSS/JS files are not in the same directory as the HTML file |
-| Fonts look wrong | Check that the font URL is correct and accessible; try Google Fonts CDN or local @font-face |
-| Charts don't appear | Check the Chart.js script tag is correct and the network is accessible |
+| Image blank or empty | JS/fonts not finished; page may need more time to load |
+| Styles missing | Linked CSS paths wrong relative to the HTML file |
+| Charts missing | Chart.js or network blocked |
+| Long page truncated / blank at bottom | Use `--segment-height` or structure with `--sections` |
+| Wrong slice boundaries | Adjust `[data-html2img-section]` grouping; avoid splitting components |
