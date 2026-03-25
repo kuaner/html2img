@@ -27,12 +27,20 @@ scripts/html2img <input.html> <output.png> [width] --sections
 
 Default width is 800px.
 
+Single-image limit note:
+- Single-image mode has a practical cap around **28800 output px** (about **14400 CSS px/pt** at Retina 2x).
+- Prefer staying under **12000 output px** for safer single-image export.
+- If a page may exceed single-image limits, first ask/guide the LLM to add `data-html2img-section` wrappers and use `--sections`.
+- Only when HTML cannot be modified, fall back to fixed-height slicing with `--segment-height`.
+
 ## Key constraints
 
 - **Local files only** — input must be a local `.html` path; remote URLs are not supported.
 - **External resources** — CSS/JS/images/fonts may be local or CDN; relative paths and remote URLs are allowed.
 - **Output is PNG**.
 - **macOS only** — macOS 13+ and WebKit.
+- **Single-image height limit** — practical hard cap is around **28800 output px** (about **14400 CSS px/pt** at Retina 2x). Above this, single-image mode can truncate or turn blank near the bottom.
+- **Recommended safe range** — keep single-image outputs under **12000 output px** when possible.
 - **Very long pages** — avoid a single full-page capture; use `--segment-height` or `--sections`.
 
 ## Workflow
@@ -42,10 +50,11 @@ When asked to render HTML to images:
 1. **Locate the HTML file**.
 2. **Choose output path** — if unspecified, default `report.html` → `report.png` next to the file.
 3. **Choose width** — default 800 unless the user asks otherwise.
-4. **Choose mode**:
-   - **Single image**: normal short pages.
-   - **Fixed-height strips**: `--segment-height` for long pages without semantic boundaries.
-   - **Section images**: `--sections` when HTML uses `[data-html2img-section]` wrappers (preferred for reports).
+4. **Choose mode (important)**:
+   - **Single image (default)**: use no extra flag for normal pages.
+   - **Section images (`--sections`)**: if content may be too long, prefer asking the LLM to add `[data-html2img-section]` wrappers, then use this mode.
+   - **Fixed-height strips (`--segment-height`)**: fallback only when you cannot modify HTML to add section wrappers.
+   - `--sections` and `--segment-height` are mutually exclusive. Do not pass both.
 5. **Run**:
    ```bash
    scripts/html2img <input.html> <output.png> [width]
@@ -59,6 +68,27 @@ When asked to render HTML to images:
    scripts/html2img <input.html> <output.png> [width] --sections
    ```
 6. **Report paths** — single file prints one path; segmented modes print `output-1.png`, `output-2.png`, …
+
+## Mode selection rules (for LLMs)
+
+Use this exact decision order to avoid confusion:
+
+1. If the user wants one image and page is not very long -> **single mode** (no flag).
+2. Else, if content may exceed single-image limits, guide the LLM to add `[data-html2img-section]` wrappers -> **use `--sections`**.
+3. If HTML cannot be changed -> **use `--segment-height`** with a practical height (typically `6000-9000`).
+
+Quick mapping:
+
+| Situation | Command mode |
+|---|---|
+| Short/simple page, one output | default (no segmentation flag) |
+| Long report / possibly over height limit | Prefer adding wrappers + `--sections` |
+| HTML cannot be changed | `--segment-height` |
+
+Critical clarification:
+- This is **not** "`--sections` vs `--segment-height` always 二选一".
+- There are **three** valid modes: default single image, section-based segmentation, fixed-height segmentation.
+- Only the two segmentation flags are mutually exclusive.
 
 ## Section HTML (for LLMs generating reports)
 

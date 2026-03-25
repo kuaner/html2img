@@ -43,6 +43,12 @@ html2img input.html output.png --segment-height 8000  # output-1.png, output-2.p
 html2img input.html output.png --sections  # one PNG per [data-html2img-section] block
 ```
 
+Single-image limit note:
+- Single-image mode has a practical cap around **28800 output px** (about **14400 CSS px/pt** at Retina 2x).
+- For reliability, keep single-image exports under **12000 output px**.
+- If a page may exceed this limit, prefer adding `data-html2img-section` wrappers and use `--sections`.
+- Only when HTML cannot be modified, use `--segment-height` fallback.
+
 ### Section-based slicing
 
 When fixed-height slices cut through cards/charts, wrap each logical block in a container with `data-html2img-section` (any tag, e.g. `<section>` or `<div>`):
@@ -91,6 +97,8 @@ Add the dependency in `Package.swift`:
 
 - **Local files only** — `html2img` renders local HTML files. Remote URLs are not supported.
 - **External resources** — CSS/JS/images can be local files or loaded from CDN. Both relative paths and remote URLs are supported.
+- **Single-image height limit** — practical hard cap is about **28800 output pixels** (roughly **14400 CSS px/pt** at Retina 2x). Beyond this range, single-image mode may truncate or render blank near the bottom.
+- **Recommended threshold** — keep single-image exports under **12000 output pixels** for safer results; use `--sections` or `--segment-height` for taller pages.
 
 ## How it works
 
