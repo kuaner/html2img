@@ -10,9 +10,47 @@ public final class Renderer: NSObject, WKNavigationDelegate {
     private var segmentedCompletion: ((Result<[NSImage], Error>) -> Void)?
     private var segmentHeight: CGFloat?
     private var segmentBySections = false
+    private var heightCompletion: ((Result<CGFloat, Error>) -> Void)?
 
     /// Wrap each logical slice of report HTML in an element with this attribute; use `renderSegmentedBySections`.
     public static let sectionAttribute = "data-html2img-section"
+
+    /// Measure the full content height of an HTML file without rendering.
+    /// - Parameters:
+    ///   - fileURL: Local file URL pointing to the HTML file.
+    ///   - width: Viewport width in points (default 800).
+    ///   - completion: Called with the scrollHeight in CSS points.
+    public func measureHeight(
+        fileURL: URL,
+        width: CGFloat = 800,
+        completion: @escaping (Result<CGFloat, Error>) -> Void
+    ) {
+        self.heightCompletion = completion
+        self.completion = nil
+        self.segmentedCompletion = nil
+        self.segmentHeight = nil
+        self.segmentBySections = false
+
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: width, height: 10))
+        webView.navigationDelegate = self
+        self.webView = webView
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: width, height: 600),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = webView
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        window.isReleasedWhenClosed = false
+        window.alphaValue = 0.0
+        self.window = window
+
+        let directory = fileURL.deletingLastPathComponent()
+        webView.loadFileURL(fileURL, allowingReadAccessTo: directory)
+    }
 
     /// Render a local HTML file to an image.
     /// - Parameters:
@@ -140,6 +178,14 @@ public final class Renderer: NSObject, WKNavigationDelegate {
                 totalHeight = CGFloat(h) > 0 ? CGFloat(h) : 600
             } else {
                 totalHeight = 600
+            }
+            // If only measuring, return height and exit
+            if let heightCompletion = self.heightCompletion {
+                DispatchQueue.main.async {
+                    self.heightCompletion = nil
+                    heightCompletion(.success(totalHeight))
+                }
+                return
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 if self.segmentBySections {
@@ -349,6 +395,7 @@ public final class Renderer: NSObject, WKNavigationDelegate {
             completion?(result)
             completion = nil
             segmentedCompletion = nil
+            heightCompletion = nil
             segmentHeight = nil
             segmentBySections = false
         }

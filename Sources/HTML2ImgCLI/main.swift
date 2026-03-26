@@ -3,7 +3,7 @@ import HTML2ImgCore
 
 let args = CommandLine.arguments
 guard args.count >= 3 else {
-    fputs("Usage: html2img <input.html> <output.png> [width] [--segment-height <height>] [--sections]\n", stderr)
+    fputs("Usage: html2img <input.html> <output.png> [width] [--segment-height <height>] [--sections] [--height]\n", stderr)
     exit(1)
 }
 
@@ -12,6 +12,7 @@ let outputPath = args[2]
 var width: CGFloat = 800
 var segmentHeight: CGFloat?
 var sections = false
+var heightOnly = false
 
 var idx = 3
 while idx < args.count {
@@ -28,6 +29,12 @@ while idx < args.count {
 
     if token == "--sections" {
         sections = true
+        idx += 1
+        continue
+    }
+
+    if token == "--height" {
+        heightOnly = true
         idx += 1
         continue
     }
@@ -118,13 +125,34 @@ if let segmentHeight {
         }
         exit(0)
     }
+} else if heightOnly {
+    renderer.measureHeight(fileURL: fileURL, width: width) { result in
+        switch result {
+        case .success(let height):
+            let outputPx = Int(height * 2) // Retina 2x
+            let maxHeight = 6000 // CSS px safe threshold (≈12000 output px @2x)
+            let sectionsCount = Int(ceil(height / CGFloat(maxHeight)))
+            if sectionsCount > 1 {
+                print("{\"height\":\(Int(height)),\"output_px\":\(outputPx),\"mode\":\"sections\",\"estimated_sections\":\(sectionsCount),\"recommendation\":\"use --sections\"}")
+            } else {
+                print("{\"height\":\(Int(height)),\"output_px\":\(outputPx),\"mode\":\"single\",\"recommendation\":\"safe for single image\"}")
+            }
+        case .failure(let error):
+            fputs("Error: \(error)\n", stderr)
+            exit(1)
+        }
+        exit(0)
+    }
 } else {
     renderer.render(fileURL: fileURL, width: width) { result in
         switch result {
         case .success(let image):
             do {
                 try writePNG(image, to: outputPath)
-                print(outputPath)
+                // Print output path and height info
+                let w = Int(image.size.width)
+                let h = Int(image.size.height)
+                print("\(outputPath) \(w)x\(h)")
             } catch {
                 fputs("Error: \(error)\n", stderr)
                 exit(1)

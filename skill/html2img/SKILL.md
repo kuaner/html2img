@@ -23,14 +23,25 @@ Render a local HTML file to PNG using the `html2img` CLI tool.
 scripts/html2img <input.html> <output.png> [width]
 scripts/html2img <input.html> <output.png> [width] --segment-height <height>
 scripts/html2img <input.html> <output.png> [width] --sections
+scripts/html2img <input.html> <output.png> [width] --height
 ```
 
 Default width is 800px.
 
+### Pre-render height check (`--height`)
+
+**Always run `--height` first** to check actual content height and get a rendering recommendation:
+
+```bash
+scripts/html2img <input.html> dummy.png [width] --height
+```
+
+Outputs JSON with `height` (CSS px), `output_px` (Retina 2x), `mode` (`single` or `sections`), and `recommendation`. Use this to decide whether to render as single image or use `--sections`.
+
 Single-image limit note:
-- Single-image mode has a practical cap around **28800 output px** (about **14400 CSS px/pt** at Retina 2x).
-- Prefer staying under **12000 output px** for safer single-image export.
-- If a page may exceed single-image limits, first ask/guide the LLM to add `data-html2img-section` wrappers and use `--sections`.
+- Single-image mode has a practical cap around **12000 output px** (about **6000 CSS px/pt** at Retina 2x).
+- **Pre-render check**: always use `--height` to confirm before rendering.
+- If `mode` is `sections`, use `--sections` to split output.
 - Only when HTML cannot be modified, fall back to fixed-height slicing with `--segment-height`.
 
 ## Key constraints
