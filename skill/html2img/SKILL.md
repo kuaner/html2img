@@ -130,3 +130,13 @@ Critical clarification:
 | Charts missing | Chart.js or network blocked |
 | Long page truncated / blank at bottom | Use `--segment-height` or structure with `--sections` |
 | Wrong slice boundaries | Adjust `[data-html2img-section]` grouping; avoid splitting components |
+| Hero area huge with black space | Using `vh`/`vw` units — use fixed `px` or `rem` instead |
+| Background image not visible | CSS `background-image` may not resolve in some cases; prefer `<img>` tag |
+| Absolute overlay not rendering | Not an html2img issue — `position: absolute` + `z-index` works; check containing block has explicit dimensions |
+
+## CSS guidelines
+
+- **Safe**: `px`, `rem`, `em`, `%`, `clamp()`, `position: absolute`, `z-index`, `object-fit`, flexbox, grid
+- **Avoid**: `vh`, `vw`, `vmin`, `vmax` — viewport units are unreliable in offscreen rendering
+- **Hero backgrounds**: use `<img>` tag with `position: absolute` + `inset: 0` + `object-fit: cover`, not CSS `background-image` on a pseudo-element
+- **Fixed heights preferred**: use `px` or `rem` for section heights, never `vh`
