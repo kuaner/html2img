@@ -12,9 +12,10 @@ A lightweight macOS command-line tool that renders local HTML files to PNG image
 ## Features
 
 - Full CSS / JavaScript / Canvas / Chart.js support via WKWebView
-- Auto-detects content height
+- **Auto mode** — no flags needed; automatically measures height and picks the best rendering strategy (single / sections / segment-height)
 - Configurable viewport width
-- Optional fixed-height segmentation or `--sections` (one PNG per `[data-html2img-section]` block)
+- Explicit `--sections` (one PNG per `[data-html2img-section]` block) or `--segment-height` fallback
+- JSON output for programmatic use
 - Usable as a CLI tool or as a Swift library
 
 ## Requirements
@@ -34,24 +35,51 @@ This builds and installs the `html2img` binary to `/usr/local/bin`.
 
 ## Usage
 
-### CLI
+### Auto mode (recommended)
+
+Just run it. No flags needed:
 
 ```bash
 html2img input.html output.png
 html2img input.html output.png 1200   # custom width
-html2img input.html output.png --segment-height 8000  # output-1.png, output-2.png...
-html2img input.html output.png --sections  # one PNG per [data-html2img-section] block
 ```
 
-Single-image limit note:
-- Single-image mode has a practical cap around **28800 output px** (about **14400 CSS px/pt** at Retina 2x).
-- For reliability, keep single-image exports under **12000 output px**.
-- If a page may exceed this limit, prefer adding `data-html2img-section` wrappers and use `--sections`.
-- Only when HTML cannot be modified, use `--segment-height` fallback.
+The tool automatically:
+1. Measures content height
+2. If height ≤ 6000 CSS px → renders single image
+3. If height > 6000 and HTML has `[data-html2img-section]` → sections mode
+4. If height > 6000 and no sections → segment-height mode (6000px per segment)
+
+### Explicit modes
+
+```bash
+html2img input.html output.png --sections               # force sections mode
+html2img input.html output.png --segment-height 8000     # force segment-height
+html2img input.html output.png --height                  # height check only (debugging)
+```
+
+### Output
+
+All modes output JSON to stdout:
+
+```json
+{"mode":"single","height":600,"output_px":1200,"files":["output.png"]}
+{"mode":"sections","height":9709,"output_px":19418,"count":11,"files":["output-1.png","output-2.png",...]}
+{"mode":"segmented","height":9709,"output_px":19418,"segment_height":6000,"count":3,"files":["output-1.png","output-2.png","output-3.png"]}
+```
+
+| Field | Description |
+|-------|-------------|
+| `mode` | `single`, `sections`, or `segmented` |
+| `height` | Content height in CSS pixels |
+| `output_px` | Output height in pixels (Retina 2x) |
+| `count` | Number of output files (sections/segmented only) |
+| `segment_height` | Segment height used (segmented only) |
+| `files` | Array of output file paths |
 
 ### Section-based slicing
 
-When fixed-height slices cut through cards/charts, wrap each logical block in a container with `data-html2img-section` (any tag, e.g. `<section>` or `<div>`):
+Wrap each logical block in a container with `data-html2img-section`:
 
 ```html
 <section data-html2img-section>...</section>
@@ -60,9 +88,10 @@ When fixed-height slices cut through cards/charts, wrap each logical block in a 
 
 ```bash
 html2img report.html out.png --sections
+# → out-1.png, out-2.png, ...
 ```
 
-- Outputs `out-1.png`, `out-2.png`, … in document order, one image per section’s bounding box.
+One image per section's bounding box, in document order.
 
 ### As a Swift library
 
@@ -70,18 +99,29 @@ html2img report.html out.png --sections
 import HTML2Img
 
 let renderer = Renderer()
+
+// Single image
 renderer.render(fileURL: url, width: 800) { result in
     switch result {
-    case .success(let image):
-        // use NSImage
-    case .failure(let error):
-        print(error)
+    case .success(let image): /* use NSImage */ break
+    case .failure(let error): print(error)
     }
 }
 
+// By sections
 renderer.renderSegmentedBySections(fileURL: url, width: 800) { result in
     switch result {
     case .success(let images): break // one NSImage per [data-html2img-section]
+    case .failure(let error): print(error)
+    }
+}
+
+// Auto measure
+renderer.measureAuto(fileURL: url, width: 800) { result in
+    switch result {
+    case .success(let info):
+        // info.height, info.sectionCount, info.hasSections
+        break
     case .failure(let error): print(error)
     }
 }
@@ -93,14 +133,21 @@ Add the dependency in `Package.swift`:
 .package(url: "https://github.com/kuaner/html2img.git", from: "0.1.0")
 ```
 
+## Testing
+
+```bash
+make test
+```
+
+Tests cover auto-mode logic, output parsing, and edge cases. See `Tests/HTML2ImgTests/` for details.
+
 ## Notes
 
 - **Local files only** — `html2img` renders local HTML files. Remote URLs are not supported.
 - **External resources** — CSS/JS/images can be local files or loaded from CDN. Both relative paths and remote URLs are supported.
 - **Single-image height limit** — practical hard cap is about **28800 output pixels** (roughly **14400 CSS px/pt** at Retina 2x). Beyond this range, single-image mode may truncate or render blank near the bottom.
-- **Recommended threshold** — keep single-image exports under **12000 output pixels** for safer results; use `--sections` or `--segment-height` for taller pages.
-- **Avoid `vh`/`vw` units** — viewport units are unreliable in offscreen WKWebView rendering. Use fixed `px`, `rem`, or `clamp()` instead. See [CSS considerations](#css-considerations) below.
-- **`position: absolute` works** — absolute positioning is fully supported. Overlays (`position: absolute` + `z-index`) and background layers render correctly.
+- **Recommended threshold** — keep single-image exports under **12000 output pixels** for safer results; auto mode handles this automatically.
+- **Avoid `vh`/`vw` units** — viewport units are unreliable in offscreen WKWebView rendering. Use fixed `px`, `rem`, or `clamp()` instead.
 
 ## CSS considerations
 

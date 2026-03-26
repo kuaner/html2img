@@ -65,6 +65,16 @@ let fileURL = URL(fileURLWithPath: inputPath)
 let app = NSApplication.shared
 let renderer = Renderer()
 
+let maxHeight: CGFloat = 6000
+let defaultSegmentHeight: CGFloat = 6000
+
+func outputBaseAndExt() -> (String, String) {
+    let outputURL = URL(fileURLWithPath: outputPath)
+    let base = outputURL.deletingPathExtension().path
+    let ext = outputURL.pathExtension.isEmpty ? "png" : outputURL.pathExtension
+    return (base, ext)
+}
+
 func writePNG(_ image: NSImage, to path: String) throws {
     guard let tiff = image.tiffRepresentation,
           let bitmap = NSBitmapImageRep(data: tiff),
@@ -74,34 +84,31 @@ func writePNG(_ image: NSImage, to path: String) throws {
     try png.write(to: URL(fileURLWithPath: path))
 }
 
-func writeSegmentOutputs(images: [NSImage]) throws {
-    let outputURL = URL(fileURLWithPath: outputPath)
-    let base = outputURL.deletingPathExtension().path
-    let ext = outputURL.pathExtension.isEmpty ? "png" : outputURL.pathExtension
+func writeSegmentOutputs(images: [NSImage]) throws -> [String] {
+    let (base, ext) = outputBaseAndExt()
+    var paths: [String] = []
     for (index, image) in images.enumerated() {
-        let segmentPath = "\(base)-\(index + 1).\(ext)"
-        try writePNG(image, to: segmentPath)
-        print(segmentPath)
+        let path = "\(base)-\(index + 1).\(ext)"
+        try writePNG(image, to: path)
+        paths.append(path)
     }
+    return paths
+}
+
+func filesJSON(_ paths: [String]) -> String {
+    paths.map { "\"\($0)\"" }.joined(separator: ",")
 }
 
 if let segmentHeight {
     renderer.renderSegmented(fileURL: fileURL, width: width, segmentHeight: segmentHeight) { result in
         switch result {
         case .success(let images):
-            if images.isEmpty {
-                fputs("Error: no segment images produced\n", stderr)
-                exit(1)
-            }
+            if images.isEmpty { fputs("Error: no segment images produced\n", stderr); exit(1) }
             do {
-                try writeSegmentOutputs(images: images)
-            } catch {
-                fputs("Error: \(error)\n", stderr)
-                exit(1)
-            }
-        case .failure(let error):
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+                let paths = try writeSegmentOutputs(images: images)
+                print("{\"mode\":\"segmented\",\"segment_height\":\(Int(segmentHeight)),\"count\":\(paths.count),\"files\":[\(filesJSON(paths))]}")
+            } catch { fputs("Error: \(error)\n", stderr); exit(1) }
+        case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
         }
         exit(0)
     }
@@ -109,19 +116,12 @@ if let segmentHeight {
     renderer.renderSegmentedBySections(fileURL: fileURL, width: width) { result in
         switch result {
         case .success(let images):
-            if images.isEmpty {
-                fputs("Error: no segment images produced\n", stderr)
-                exit(1)
-            }
+            if images.isEmpty { fputs("Error: no section images produced\n", stderr); exit(1) }
             do {
-                try writeSegmentOutputs(images: images)
-            } catch {
-                fputs("Error: \(error)\n", stderr)
-                exit(1)
-            }
-        case .failure(let error):
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+                let paths = try writeSegmentOutputs(images: images)
+                print("{\"mode\":\"sections\",\"count\":\(paths.count),\"files\":[\(filesJSON(paths))]}")
+            } catch { fputs("Error: \(error)\n", stderr); exit(1) }
+        case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
         }
         exit(0)
     }
@@ -129,39 +129,64 @@ if let segmentHeight {
     renderer.measureHeight(fileURL: fileURL, width: width) { result in
         switch result {
         case .success(let height):
-            let outputPx = Int(height * 2) // Retina 2x
-            let maxHeight = 6000 // CSS px safe threshold (≈12000 output px @2x)
-            let sectionsCount = Int(ceil(height / CGFloat(maxHeight)))
+            let outputPx = Int(height * 2)
+            let sectionsCount = Int(ceil(height / maxHeight))
             if sectionsCount > 1 {
                 print("{\"height\":\(Int(height)),\"output_px\":\(outputPx),\"mode\":\"sections\",\"estimated_sections\":\(sectionsCount),\"recommendation\":\"use --sections\"}")
             } else {
                 print("{\"height\":\(Int(height)),\"output_px\":\(outputPx),\"mode\":\"single\",\"recommendation\":\"safe for single image\"}")
             }
-        case .failure(let error):
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+        case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
         }
         exit(0)
     }
 } else {
-    renderer.render(fileURL: fileURL, width: width) { result in
+    // Auto mode: measure height + check sections, then decide
+    renderer.measureAuto(fileURL: fileURL, width: width) { result in
         switch result {
-        case .success(let image):
-            do {
-                try writePNG(image, to: outputPath)
-                // Print output path and height info
-                let w = Int(image.size.width)
-                let h = Int(image.size.height)
-                print("\(outputPath) \(w)x\(h)")
-            } catch {
-                fputs("Error: \(error)\n", stderr)
-                exit(1)
+        case .success(let info):
+            if info.height <= maxHeight {
+                renderer.render(fileURL: fileURL, width: width) { result in
+                    switch result {
+                    case .success(let image):
+                        do {
+                            try writePNG(image, to: outputPath)
+                            let h = Int(image.size.height)
+                            print("{\"mode\":\"single\",\"height\":\(h),\"output_px\":\(h * 2),\"files\":[\"\(outputPath)\"]}")
+                        } catch { fputs("Error: \(error)\n", stderr); exit(1) }
+                    case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
+                    }
+                    exit(0)
+                }
+            } else if info.hasSections {
+                renderer.renderSegmentedBySections(fileURL: fileURL, width: width) { result in
+                    switch result {
+                    case .success(let images):
+                        if images.isEmpty { fputs("Error: no section images produced\n", stderr); exit(1) }
+                        do {
+                            let paths = try writeSegmentOutputs(images: images)
+                            print("{\"mode\":\"sections\",\"height\":\(Int(info.height)),\"output_px\":\(Int(info.height * 2)),\"count\":\(paths.count),\"files\":[\(filesJSON(paths))]}")
+                        } catch { fputs("Error: \(error)\n", stderr); exit(1) }
+                    case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
+                    }
+                    exit(0)
+                }
+            } else {
+                renderer.renderSegmented(fileURL: fileURL, width: width, segmentHeight: defaultSegmentHeight) { result in
+                    switch result {
+                    case .success(let images):
+                        if images.isEmpty { fputs("Error: no segment images produced\n", stderr); exit(1) }
+                        do {
+                            let paths = try writeSegmentOutputs(images: images)
+                            print("{\"mode\":\"segmented\",\"height\":\(Int(info.height)),\"output_px\":\(Int(info.height * 2)),\"segment_height\":\(Int(defaultSegmentHeight)),\"count\":\(paths.count),\"files\":[\(filesJSON(paths))]}")
+                        } catch { fputs("Error: \(error)\n", stderr); exit(1) }
+                    case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
+                    }
+                    exit(0)
+                }
             }
-        case .failure(let error):
-            fputs("Error: \(error)\n", stderr)
-            exit(1)
+        case .failure(let error): fputs("Error: \(error)\n", stderr); exit(1)
         }
-        exit(0)
     }
 }
 

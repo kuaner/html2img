@@ -21,7 +21,8 @@ let package = Package(
         .testTarget(
             name: "HTML2ImgTests",
             dependencies: ["HTML2ImgCore"],
-            path: "Tests/HTML2ImgTests"
+            path: "Tests/HTML2ImgTests",
+            resources: [.copy("Fixtures")]
         ),
     ]
 )

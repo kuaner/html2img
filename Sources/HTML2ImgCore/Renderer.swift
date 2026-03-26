@@ -2,6 +2,13 @@ import Cocoa
 import WebKit
 import PDFKit
 
+/// Result of auto-mode measurement: content height and section count.
+public struct AutoResult {
+    public let height: CGFloat
+    public let sectionCount: Int
+    public var hasSections: Bool { sectionCount > 0 }
+}
+
 /// Renders a local HTML file into an `NSImage` using an offscreen WKWebView.
 public final class Renderer: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
@@ -11,6 +18,7 @@ public final class Renderer: NSObject, WKNavigationDelegate {
     private var segmentHeight: CGFloat?
     private var segmentBySections = false
     private var heightCompletion: ((Result<CGFloat, Error>) -> Void)?
+    private var autoCompletion: ((Result<AutoResult, Error>) -> Void)?
 
     /// Wrap each logical slice of report HTML in an element with this attribute; use `renderSegmentedBySections`.
     public static let sectionAttribute = "data-html2img-section"
@@ -28,6 +36,42 @@ public final class Renderer: NSObject, WKNavigationDelegate {
         self.heightCompletion = completion
         self.completion = nil
         self.segmentedCompletion = nil
+        self.autoCompletion = nil
+        self.segmentHeight = nil
+        self.segmentBySections = false
+
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: width, height: 10))
+        webView.navigationDelegate = self
+        self.webView = webView
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: width, height: 600),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = webView
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        window.isReleasedWhenClosed = false
+        window.alphaValue = 0.0
+        self.window = window
+
+        let directory = fileURL.deletingLastPathComponent()
+        webView.loadFileURL(fileURL, allowingReadAccessTo: directory)
+    }
+
+    /// Measure content height and check for [data-html2img-section] elements in one page load.
+    /// Used by auto-mode to decide rendering strategy.
+    public func measureAuto(
+        fileURL: URL,
+        width: CGFloat = 800,
+        completion: @escaping (Result<AutoResult, Error>) -> Void
+    ) {
+        self.autoCompletion = completion
+        self.completion = nil
+        self.segmentedCompletion = nil
+        self.heightCompletion = nil
         self.segmentHeight = nil
         self.segmentBySections = false
 
@@ -179,11 +223,31 @@ public final class Renderer: NSObject, WKNavigationDelegate {
             } else {
                 totalHeight = 600
             }
-            // If only measuring, return height and exit
+            // If only measuring height, return and exit
             if let heightCompletion = self.heightCompletion {
                 DispatchQueue.main.async {
                     self.heightCompletion = nil
                     heightCompletion(.success(totalHeight))
+                }
+                return
+            }
+            // If auto-mode, also query section count
+            if let autoCompletion = self.autoCompletion {
+                let attr = Self.sectionAttribute.replacingOccurrences(of: "'", with: "\\'")
+                let script = "document.querySelectorAll('[\(attr)]').length"
+                self.webView?.evaluateJavaScript(script) { countResult, _ in
+                    let sectionCount: Int
+                    if let c = countResult as? Int {
+                        sectionCount = c
+                    } else if let c = countResult as? Double {
+                        sectionCount = Int(c)
+                    } else {
+                        sectionCount = 0
+                    }
+                    DispatchQueue.main.async {
+                        self.autoCompletion = nil
+                        autoCompletion(.success(AutoResult(height: totalHeight, sectionCount: sectionCount)))
+                    }
                 }
                 return
             }
@@ -396,6 +460,7 @@ public final class Renderer: NSObject, WKNavigationDelegate {
             completion = nil
             segmentedCompletion = nil
             heightCompletion = nil
+            autoCompletion = nil
             segmentHeight = nil
             segmentBySections = false
         }
@@ -410,6 +475,8 @@ public final class Renderer: NSObject, WKNavigationDelegate {
             segmentedCompletion?(result)
             segmentedCompletion = nil
             completion = nil
+            heightCompletion = nil
+            autoCompletion = nil
             segmentHeight = nil
             segmentBySections = false
         }
