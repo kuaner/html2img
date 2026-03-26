@@ -2,8 +2,15 @@ import Cocoa
 import HTML2ImgCore
 
 let args = CommandLine.arguments
+
+// Handle --version early (no input/output args needed)
+if args.contains("--version") || args.contains("-v") {
+    print("html2img \(html2imgVersion)")
+    exit(0)
+}
+
 guard args.count >= 3 else {
-    fputs("Usage: html2img <input.html> <output.png> [width] [--segment-height <height>] [--sections] [--height]\n", stderr)
+    fputs("Usage: html2img <input.html> <output.png> [width] [--segment-height <height>] [--sections] [--height] [--version]\n", stderr)
     exit(1)
 }
 
