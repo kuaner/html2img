@@ -99,13 +99,23 @@ Add the dependency in `Package.swift`:
 - **External resources** — CSS/JS/images can be local files or loaded from CDN. Both relative paths and remote URLs are supported.
 - **Single-image height limit** — practical hard cap is about **28800 output pixels** (roughly **14400 CSS px/pt** at Retina 2x). Beyond this range, single-image mode may truncate or render blank near the bottom.
 - **Recommended threshold** — keep single-image exports under **12000 output pixels** for safer results; use `--sections` or `--segment-height` for taller pages.
+- **Avoid `vh`/`vw` units** — viewport units are unreliable in offscreen WKWebView rendering. Use fixed `px`, `rem`, or `clamp()` instead. See [CSS considerations](#css-considerations) below.
+- **`position: absolute` works** — absolute positioning is fully supported. Overlays (`position: absolute` + `z-index`) and background layers render correctly.
+
+## CSS considerations
+
+html2img uses a native viewport size (not stretched to content height), so CSS behaves close to a real browser:
+
+- **Safe**: `px`, `rem`, `em`, `%`, `clamp()`, `position: absolute`, `z-index`, `object-fit`, flexbox, grid
+- **Avoid**: `vh`, `vw`, `vmin`, `vmax` — these depend on the WKWebView frame size which is not a standard viewport
+- **Background images**: CSS `background-image` with relative paths works when loaded via `file://`. For reliability with section-based rendering, prefer `<img>` tags with `position: absolute` for hero-style overlays.
 
 ## How it works
 
-1. Loads the HTML file into an offscreen WKWebView
+1. Loads the HTML file into an offscreen WKWebView (native viewport size, not stretched)
 2. Waits for the page to fully load (including JS, Canvas, etc.)
-3. Measures the full content height
-4. Exports to PDF via `WKWebView.createPDF`
+3. Measures the full content height via `scrollHeight`
+4. Exports to PDF via `WKWebView.createPDF` with `WKPDFConfiguration.rect`
 5. Renders the PDF page to an `NSImage`
 
 ## License

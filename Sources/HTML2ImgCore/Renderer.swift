@@ -133,22 +133,21 @@ public final class Renderer: NSObject, WKNavigationDelegate {
 
     private func captureContentHeight() {
         webView?.evaluateJavaScript("document.documentElement.scrollHeight") { result, _ in
-            let height: CGFloat
+            let totalHeight: CGFloat
             if let h = result as? Double {
-                height = h > 0 ? h : 600
+                totalHeight = h > 0 ? h : 600
             } else if let h = result as? Int {
-                height = CGFloat(h) > 0 ? CGFloat(h) : 600
+                totalHeight = CGFloat(h) > 0 ? CGFloat(h) : 600
             } else {
-                height = 600
+                totalHeight = 600
             }
-            self.webView?.frame.size.height = height
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 if self.segmentBySections {
                     self.captureSectionRanges()
                 } else if let segmentHeight = self.segmentHeight {
-                    self.generateSegmentedPDF(totalHeight: height, segmentHeight: segmentHeight)
+                    self.generateSegmentedPDF(totalHeight: totalHeight, segmentHeight: segmentHeight)
                 } else {
-                    self.generatePDF(height: height)
+                    self.generatePDF(height: totalHeight)
                 }
             }
         }
