@@ -361,22 +361,29 @@ public final class Renderer: NSObject, WKNavigationDelegate {
             }
 
             let (yOffset, currentHeight) = validRanges[rangeIndex]
-            let config = WKPDFConfiguration()
-            config.rect = CGRect(x: 0, y: yOffset, width: webView.frame.width, height: currentHeight)
 
-            webView.createPDF(configuration: config) { result in
-                switch result {
-                case .success(let data):
-                    switch self.pdfToImageResult(data: data) {
-                    case .success(let image):
-                        images.append(image)
-                        rangeIndex += 1
-                        renderNextSegment()
-                    case .failure(let error):
-                        self.finishSegmented(.failure(error))
+            // Resize webView to match section height so absolute-positioned
+            // backgrounds render correctly within the visible frame.
+            let sectionSize = NSSize(width: webView.frame.width, height: currentHeight)
+            webView.frame.size = sectionSize
+
+            // Scroll to the section offset
+            webView.evaluateJavaScript("window.scrollTo(0, \(yOffset))") { [self] _, _ in
+                // Wait for scroll & repaint to settle
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    // Capture the visible content as bitmap
+                    let config = WKSnapshotConfiguration()
+                    config.rect = CGRect(x: 0, y: 0, width: webView.frame.width, height: currentHeight)
+
+                    webView.takeSnapshot(with: config) { image, error in
+                        if let image = image {
+                            images.append(image)
+                            rangeIndex += 1
+                            renderNextSegment()
+                        } else {
+                            self.finishSegmented(.failure(error ?? RenderError.snapshotFailed))
+                        }
                     }
-                case .failure(let error):
-                    self.finishSegmented(.failure(error))
                 }
             }
         }
@@ -490,6 +497,7 @@ public enum RenderError: LocalizedError {
     case pdfConversionFailed
     case graphicsContextUnavailable
     case invalidSections
+    case snapshotFailed
 
     public var errorDescription: String? {
         switch self {
@@ -497,6 +505,7 @@ public enum RenderError: LocalizedError {
         case .pdfConversionFailed: "Failed to convert PDF to image"
         case .graphicsContextUnavailable: "Unable to obtain graphics context"
         case .invalidSections: "No valid [data-html2img-section] blocks found"
+        case .snapshotFailed: "Failed to take snapshot of webView"
         }
     }
 }
